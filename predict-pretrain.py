@@ -8,6 +8,7 @@ from torchvision.ops import box_convert
 import torchvision.transforms as T
 import numpy as np
 import cv2
+import os
 from tqdm import tqdm
 
 from segment_anything import SamPredictor, sam_model_registry
@@ -185,15 +186,27 @@ def ubdd_plusplus(
                     .max(dim=0)[0]
                     .squeeze(0)
                 )
+            # 提取文件名并确保路径的跨平台兼容性
+            file_name = os.path.basename(batch["pre_file_name"][0]).split(".")[0]
+            output_dir = os.path.join("outputs", "test")
+            os.makedirs(output_dir, exist_ok=True)  # 确保输出目录存在
 
-            file_name = batch["pre_file_name"][0].split("/")[-1][:-4]
             if save_annotations:
                 pred_mask_annotate = pred_mask.cpu().numpy()
                 color_mask = np.zeros((1024, 1024, 3), dtype=np.uint8)
                 for i in range(3):
                     color_mask[pred_mask_annotate == i] = DAMAGE_DICT_BGR[i]
-                cv2.imwrite(f"outputs/test/{file_name}_ftdino_color.png", color_mask)
-                exit(0)
+
+                output_file_path = os.path.join(output_dir, f"{file_name}_ftdino_color.png")
+                cv2.imwrite(output_file_path, color_mask)
+            # file_name = batch["pre_file_name"][0].split("/")[-1][:-4]
+            # if save_annotations:
+            #     pred_mask_annotate = pred_mask.cpu().numpy()
+            #     color_mask = np.zeros((1024, 1024, 3), dtype=np.uint8)
+            #     for i in range(3):
+            #         color_mask[pred_mask_annotate == i] = DAMAGE_DICT_BGR[i]
+            #     cv2.imwrite(f"outputs/test/{file_name}_ftdino_color.png", color_mask)
+            #     exit(0)
 
             # 0: background, 1: undamaged, 2: damaged 3: unclassified
             gt_mask = (batch["post_image_mask"][0] * 255).type(torch.uint8).to(device)

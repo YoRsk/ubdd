@@ -76,7 +76,7 @@ You can download the pre-trained weights of U-BDD++ for evaluation.
 [Coming Soon]
 
 ## Evaluation
-
+### UPDATE: download the SAM pretrained-weight _sam_vit_h_4b8939.pth_ ([segment-anything](https://github.com/facebookresearch/segment-anything?tab=readme-ov-file))  
 To evaluate U-BDD++ on xBD dataset, please run:
 ```sh
 CUDA_VISIBLE_DEVICES=0 python predict-pretrain.py --test-set-path "path/to/xbd/test" --dino-path "path/to/dino/weights" --dino-config "path/to/dino/config" --sam-path "path/to/sam/weights"

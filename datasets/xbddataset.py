@@ -1,4 +1,4 @@
-from os import listdir, path
+from pathlib import Path
 from json import load
 import random
 
@@ -33,14 +33,6 @@ FILE_OVERRIDE = None
 # FILE_OVERRIDE = ["/home/uq-yiyun/xbd/train/images/hurricane-harvey_00000206_pre_disaster.png"]
 
 class XBDDataset(Dataset):
-    """
-    Return: dict(
-        file_name, image_dim
-        pre_image_original, pre_image_mask, pre_label, pre_image
-        post_image_original, post_image_mask, post_label, post_image
-    )
-    """
-
     def __init__(
         self,
         dataset_paths: list,
@@ -55,9 +47,10 @@ class XBDDataset(Dataset):
             self.pre_image_paths = FILE_OVERRIDE
         else:
             for folder in dataset_paths:
-                for file in listdir(path.join(folder, "images")):
-                    if file.endswith("_pre_disaster.png"):
-                        self.pre_image_paths.append(path.join(folder, "images", file))
+                images_folder = Path(folder) / "images"
+                for file in images_folder.iterdir():
+                    if file.suffix == ".png" and "_pre_disaster" in file.stem:
+                        self.pre_image_paths.append(file)
 
         self.dino_transform = None
         if dino_transform:
@@ -79,10 +72,8 @@ class XBDDataset(Dataset):
     def __getitem__(self, idx):
         file_name = self.pre_image_paths[idx]
         return_item = {
-            "pre_file_name": file_name,
-            "post_file_name": file_name.replace(
-                "_pre_disaster.png", "_post_disaster.png"
-            ),
+            "pre_file_name": str(file_name),
+            "post_file_name": str(file_name).replace("_pre_disaster.png", "_post_disaster.png"),
         }
 
         pre_image_original = Image.open(file_name).convert("RGB")
@@ -91,13 +82,11 @@ class XBDDataset(Dataset):
         width, height = pre_image_original.size
         return_item["image_dim"] = (width, height)
 
-        pre_json_file = file_name.replace("/images/", "/labels/").replace(
-            ".png", ".json"
-        )
+        pre_json_file = str(file_name).replace("images", "labels").replace(".png", ".json")
 
         if self.include_masks:
             return_item["pre_image_mask"] = T.ToTensor()(
-                Image.open(file_name.replace("/images/", "/masks/")).convert("L")
+                Image.open(str(file_name).replace("images", "masks")).convert("L")
             )
 
         if self.include_bbox_labels:
@@ -125,18 +114,18 @@ class XBDDataset(Dataset):
 
         if self.include_post:
             post_image_original = Image.open(
-                file_name.replace("_pre_disaster.png", "_post_disaster.png")
+                file_name.with_name(file_name.name.replace("_pre_disaster.png", "_post_disaster.png"))
             ).convert("RGB")
             return_item["post_image_original"] = T.ToTensor()(post_image_original)
 
-            post_json_file = file_name.replace("/images/", "/labels/").replace(
+            post_json_file = str(file_name).replace("images", "labels").replace(
                 "_pre_disaster.png", "_post_disaster.json"
             )
 
             if self.include_masks:
                 return_item["post_image_mask"] = T.ToTensor()(
                     Image.open(
-                        file_name.replace("/images/", "/masks/").replace(
+                        str(file_name).replace("images", "masks").replace(
                             "_pre_disaster.png", "_post_disaster.png"
                         )
                     ).convert("L")
@@ -151,7 +140,6 @@ class XBDDataset(Dataset):
                 )[0]
 
         return return_item
-
 
 class XBDBldGTDataset(Dataset):
     """
@@ -186,7 +174,7 @@ class XBDBldGTDataset(Dataset):
         for type in self.damage_types:
             self.all_buildings[type] = []
         self.clip_preprocess_fn = clip_preprocess_fn
-
+        # convert PNG to RGB
         width, height = Image.open(self.pre_image_paths[0]).convert("RGB").size
         sample_count = 0
 
